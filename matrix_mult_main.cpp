@@ -22,65 +22,35 @@ void generation(double * mat, size_t size)
 		mat[i] = uniform_distance(gen);
 }
 
-void matrix_mult1(double * a, double * b, double * res, size_t size)
-{
-#pragma omp parallel for
-	for (int i = 0; i < size; i++)
-	{
-		for (int j = 0; j < size; j++)
-	    {
-			for (int k = 0; k < size; k++)
-		    {
-				res[i*size + j] += a[i*size + k] * b[k*size + j];
-			}
-		}
-	}
-}
-// 0.76-0.82
-// 10 - 0.06
-// 20 - 0.05
-// 25, 50 - 0.06
-// 100 - 0.07
-// 200 - 0.09
-// 250 - 0.1
-void matrix_mult(const double* a,const double* b, double* res, size_t size)
-{
-	const size_t block_size = 20;
-    #pragma omp parallel for
-    for (size_t i = 0; i < size; i += block_size) {
-        for (size_t j = 0; j < size; j += block_size) {
-            for (size_t k = 0; k < size; k += block_size) {
-                for (size_t kk = k; kk < k + block_size; kk++) {
-                    for (size_t ii = i; ii < i + block_size; ii++) {
-                        #pragma simd
-						for (size_t jj = j; jj < j + block_size; jj++) {
-                            res[ii * size + jj] += a[ii * size + kk] * b[kk * size + jj];
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// void matrix_mult(const double* a, const double* b, double* res, size_t size)
+// void matrix_mult1(double * a, double * b, double * res, size_t size)
 // {
-//     const size_t block_size = 50;
+// #pragma omp parallel for
+// 	for (int i = 0; i < size; i++)
+// 	{
+// 		for (int j = 0; j < size; j++)
+// 	    {
+// 			for (int k = 0; k < size; k++)
+// 		    {
+// 				res[i*size + j] += a[i*size + k] * b[k*size + j];
+// 			}
+// 		}
+// 	}
+// }
+// void matrix_mult(const double* a, const double* b, double* res, size_t size) {
+//     const size_t block_size = 20;
 //     #pragma omp parallel for
-//     for (size_t k = 0; k < size; k += block_size) {
-//         for (size_t i = 0; i < size; i += block_size) {
-//             for (size_t j = 0; j < size; j += block_size) {
-
-//                 for (size_t i1 = i; i1 < std::min(i + block_size, size); i1++) {
-//                     for (size_t k1 = k; k1 < std::min(k + block_size, size); k1++) {
-
-//                         for (size_t j1 = j; j1 < std::min(j + block_size, size); j1 += 4) {
-// 							__m256d ra = _mm256_loadu_pd(&a[i1 * size + k1]);
-// 							__m256d rb = _mm256_loadu_pd(&b[k1 * size + j1]);
+//     for (size_t i = 0; i < size; i += block_size) {
+//         for (size_t j = 0; j < size; j += block_size) {
+//             for (size_t k = 0; k < size; k += block_size) {
+//                 for (size_t i1 = i; i1 < i + block_size; i1++) {
+//                     for (size_t k1 = k; k1 < k + block_size; k1++) {
+//                         double tmp = a[i1 * size + k1];
+//                         for (size_t j1 = j; j1 < j + block_size; j1 += 4) {
+//                             __m256d rb = _mm256_loadu_pd(&b[k1 * size + j1]);
 //                             __m256d rres = _mm256_loadu_pd(&res[i1 * size + j1]);
-//                             rres = _mm256_fmadd_pd(ra, rb, rres);
-// 							_mm256_storeu_pd(&res[i1 * size + j1], rres);
-//                         }		
+//                             rres = _mm256_fmadd_pd(_mm256_set1_pd(tmp), rb, rres);
+//                             _mm256_storeu_pd(&res[i1 * size + j1], rres);
+//                         }
 //                     }
 //                 }
 //             }
@@ -88,6 +58,66 @@ void matrix_mult(const double* a,const double* b, double* res, size_t size)
 //     }
 // }
 
+// void matrix_mult(const double* a, const double* b, double* res, size_t size) {
+//     const size_t block_size = 20;
+//     #pragma omp parallel for
+//     for (size_t i = 0; i < size; i += block_size) {
+//         for (size_t j = 0; j < size; j += block_size) {
+//             for (size_t k = 0; k < size; k += block_size) {
+//                 for (size_t i1 = i; i1 < i + block_size; i1++) {
+//                     for (size_t k1 = k; k1 < k + block_size; k1++) {
+// 						__m256d ra = _mm256_set1_pd(a[i1 * size + k1]);
+
+//                         for (size_t j1 = j; j1 < j + block_size; j1 += 4) {
+
+//                             __m256d rb = _mm256_loadu_pd(&b[k1 * size + j1]);
+//                             __m256d rres = _mm256_loadu_pd(&res[i1 * size + j1]);
+//                             rres = _mm256_fmadd_pd(ra, rb, rres);
+//                             _mm256_storeu_pd(&res[i1 * size + j1], rres);
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
+
+void matrix_mult(const double* a, const double* b, double* res, size_t size) {
+    const size_t block_size = 20;
+    #pragma omp parallel for
+    for (size_t i = 0; i < size; i += block_size) {
+        for (size_t j = 0; j < size; j += block_size) {
+            for (size_t k = 0; k < size; k += block_size) {
+                for (size_t i1 = i; i1 < i + block_size; i1++) {
+                    for (size_t k1 = k; k1 < k + block_size; k1++) {
+
+						__m256d ra = _mm256_set1_pd(a[i1 * size + k1]);
+						__m256d rb = _mm256_loadu_pd(&b[k1 * size + j]);
+                        __m256d rres = _mm256_loadu_pd(&res[i1 * size + j]);
+                        _mm256_storeu_pd(&res[i1 * size + j], _mm256_fmadd_pd(ra, rb, rres));
+
+						rb = _mm256_loadu_pd(&b[k1 * size + j + 4]);
+                     	rres = _mm256_loadu_pd(&res[i1 * size + j + 4]);
+                        _mm256_storeu_pd(&res[i1 * size + j + 4], _mm256_fmadd_pd(ra, rb, rres));
+
+						rb = _mm256_loadu_pd(&b[k1 * size + j + 8]);
+                     	rres = _mm256_loadu_pd(&res[i1 * size + j + 8]);
+                        _mm256_storeu_pd(&res[i1 * size + j + 8], _mm256_fmadd_pd(ra, rb, rres));
+
+						rb = _mm256_loadu_pd(&b[k1 * size + j + 12]);
+                     	rres = _mm256_loadu_pd(&res[i1 * size + j + 12]);
+                        _mm256_storeu_pd(&res[i1 * size + j + 12], _mm256_fmadd_pd(ra, rb, rres));
+
+						rb = _mm256_loadu_pd(&b[k1 * size + j + 16]);
+                     	rres = _mm256_loadu_pd(&res[i1 * size + j + 16]);
+                        _mm256_storeu_pd(&res[i1 * size + j + 16], _mm256_fmadd_pd(ra, rb, rres));
+
+                    }
+                }
+            }
+        }
+    }
+}
 
 int main()
 {
